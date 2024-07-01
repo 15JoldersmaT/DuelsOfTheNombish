@@ -10,7 +10,7 @@ pygame.init()
 # Screen dimensions
 WIDTH, HEIGHT = 1200, 700
 screen = pygame.display.set_mode((WIDTH, HEIGHT), pygame.SCALED)
-pygame.display.set_caption('Duels of the Nombish')
+pygame.display.set_caption('Duels of the Nombish BETA 1.0')
 clock = pygame.time.Clock()
 
 # Colors
@@ -44,15 +44,19 @@ current_cat_image = cat2_image
 win_counter = 0
 # Load images
 zan_nri_pistol_image = pygame.image.load('oldNombish.png')
-zan_nri_shotgun_image = pygame.image.load('oldNombish.png')  # Placeholder, replace with actual image
+zan_nri_shotgun_image = pygame.image.load('oldNombishBlunder.png')  # Placeholder, replace with actual image
 min_zchel_pistol_image = pygame.image.load('MinZchel.png')
-min_zchel_shotgun_image = pygame.image.load('MinZchel.png')  # Placeholder, replace with actual image
+min_zchel_shotgun_image = pygame.image.load('MinZchelBlunder.png')  # Placeholder, replace with actual image
 opponent_images = [
     (pygame.image.load('newNombish.png'), 1),
     (pygame.image.load('gatocatstalker.png'), 1),
     (pygame.image.load('gatocatstalker2.png'), 1),
-    (pygame.image.load('RDFRanger.png'), 3),  # RDF Ranger appears after 3 wins
-    (pygame.image.load('Warden.png'), 5)     # Warden appears after 5 wins
+    (pygame.image.load('RDFRanger.png'), 30),  # RDF Ranger appears after 3 wins
+    (pygame.image.load('Warden.png'), 5),     # Warden appears after 5 wins
+    (pygame.image.load('TimeDancerLord.png'), 10), # Time Dancer Lord appears after 10 wins
+    (pygame.image.load('Blackstarcultist.png'), 15),
+    (pygame.image.load('tracki.png'), 25),
+    (pygame.image.load('goldstarcultist.png'),15)# Blackstar Cultist appears after 1 win
 ]
 background_image = pygame.image.load('nombishnorth.png')
 target = pygame.image.load('target.png')
@@ -76,6 +80,11 @@ font = pygame.font.Font(font_path, 36)
 shooting = pygame.mixer.Sound('shootAndy.mp4')
 shooting.set_volume(0.5)  # Adjust volume to ensure it does not overwhelm the player
 
+blunderShoot = pygame.mixer.Sound('blundershoot.mp3')
+blunderShoot.set_volume(0.5)  # Adjust volume to ensure it does not overwhelm the player
+
+blood = pygame.mixer.Sound('blood.mp3')
+blood.set_volume(0.5)  # Adjust volume to ensure it does not overwhelm the player
 # Game states
 SELECT_SCREEN = 0
 READY = 1
@@ -120,20 +129,40 @@ opponent_hit = False  # New flag for opponent hit
 opponent_bullet_speed = 17  # Opponent bullet speed
 opponent_shoot_in_clusters = False
 opponent_cluster_shots_remaining = 0
-current_opponent_image, current_opponent_level = random.choice(opponent_images)
-current_opponent_name = ""
+current_opponent_image, current_opponent_level = opponent_images[0]
+current_opponent_name = "Time Dancer"
 
 # Function to determine opponent name
 def set_opponent_name(image):
-    global current_opponent_name
+    global current_opponent_name, opponent_bullet_speed
     if image == opponent_images[0][0]:
         current_opponent_name = "Time Dancer"
+        opponent_bullet_speed = 17
     elif image in (opponent_images[1][0], opponent_images[2][0]):
         current_opponent_name = "Gato-Cat Stalker"
+        opponent_bullet_speed = 17
+
     elif image == opponent_images[3][0]:
         current_opponent_name = "RDF Ranger"
+        opponent_bullet_speed = 20
+
     elif image == opponent_images[4][0]:
         current_opponent_name = "City Warden"
+        opponent_bullet_speed = 17
+
+    elif image == opponent_images[5][0]:
+        current_opponent_name = "Time Ballerino"
+        opponent_bullet_speed = 18
+    elif image == opponent_images[6][0]:
+        current_opponent_name = "Blackstar Cultist"
+        opponent_bullet_speed = 17
+    elif image == opponent_images[6][0]:
+        current_opponent_name = "Tracki Knight"
+        opponent_bullet_speed = 21
+    elif image == opponent_images[7][0]:
+        current_opponent_name = "Goldstar Cultist"
+        opponent_bullet_speed = 17
+
 
 # Function to set opponent ammo based on type
 def set_opponent_ammo(image):
@@ -260,7 +289,6 @@ def reset_game(reset_wins=False):
     character_selected = False  # Reset character selection
     gun_selected = False  # Reset gun selection
     selected_gun = None  # Reset selected gun
-    #selected_character = "Zan Nri"  # Reset selected character
     player_image = get_player_image()  # Update player image
     if reset_wins:
         win_counter = 0  # Reset win counter
@@ -342,6 +370,9 @@ def draw_wavy_line():
         pygame.draw.circle(screen, PALE_ORANGE, (int(x), int(y)), 5)  # Add decorative circles
 
 def create_blood_spray(x, y, direction, num_particles=50):
+    global blood
+    blood.play()
+
     for _ in range(num_particles):
         angle = random.uniform(direction - math.pi/4, direction + math.pi/4)
         speed = random.uniform(5, 10)
@@ -406,6 +437,8 @@ def draw_selection_screen():
     global menu_font,character_selected, gun_selected, selected_character, player_image,animation_timer
     
     screen.fill(YELLOW)
+    draw_text('BETA 1.0', menu_font, BLACK, screen, WIDTH // 10, HEIGHT // 16)
+    menu_font = pygame.font.Font(font_path, 28)
     draw_text('DUELS OF THE NOMBISH', menu_font, BLACK, screen, WIDTH // 2, HEIGHT // 8)
     menu_font = pygame.font.Font(font_path, 28)
 
@@ -516,9 +549,13 @@ while running:
                 game_state = AIM
             elif game_state == AIM and player_fired_bullets < player_max_bullets and not player_hit:
                 mx, my = pygame.mouse.get_pos()
-                shooting.play()
+                
                 if abs(mx - line_x) < 10:  # Check if the click is near the aiming line
                     player_shot = True
+                    if mode == 'pistol':
+                        shooting.play()
+                    else:
+                        blunderShoot.play()
                     player_fired_bullets += 1
                     bullet_x, bullet_y = 100 + 20, player_y + 20  # Start from player's adjusted position
                     angle = math.atan2(my - bullet_y, mx - bullet_x)
@@ -574,7 +611,7 @@ while running:
                 indicator_speed *= -1
         elif game_state == AIM:
             draw_aiming_line()
-            draw_text('AIM!', font, WHITE, screen, WIDTH // 2, HEIGHT // 4)
+            draw_text('SHOOT!', font, WHITE, screen, WIDTH // 2, HEIGHT // 4)
 
             if not opponent_ready:
                 opponent_ready = True
